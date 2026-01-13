@@ -23,3 +23,10 @@ task clean(type: Delete) {
 
 apply from :"$rootProject.rootDir/scripts/output-archive.gradle"
 apply from :"$rootProject.rootDir/scripts/email-commit.gradle"
+sonarqube {
+    properties {
+        property "sonar.host.url", "http://98.88.82.44:9000/"  # or your server IP
+        property "sonar.login", "admin"
+        property "sonar.password", "Admin1234!@#$"  # default password
+    }
+}
