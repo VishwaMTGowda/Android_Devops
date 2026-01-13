@@ -31,7 +31,7 @@ jobs:
         java-version: ${{ env.JAVA_VERSION }}
         distribution: temurin
         cache: gradle
-        
+
     - name: Grant execute permission
       run: chmod +x gradlew
 
@@ -52,23 +52,27 @@ jobs:
 
     - name: Capture Date-Time
       id: date
-      run: echo "current_date_time=$(date +"%d-%m-%Y-%H-%M-%S")" >> $GITHUB_OUTPUT
+      run: echo "current_date_time=$(date +'%d-%m-%Y-%H-%M-%S')" >> $GITHUB_OUTPUT
+
+    - name: Locate APKs (Debug)
+      run: find app/build/outputs/apk -type f
 
     - name: Prepare APK Artifacts
       run: |
         mkdir -p apk-files/debug apk-files/release
 
-        cp app/build/outputs/apk/debug/app-debug.apk \
-           apk-files/debug/app-debug-${{ steps.date.outputs.current_date_time }}.apk
+        cp app/build/outputs/apk/**/debug/*.apk \
+          apk-files/debug/app-debug-${{ steps.date.outputs.current_date_time }}.apk || true
 
-        cp app/build/outputs/apk/release/app-release-unsigned.apk \
-           apk-files/release/app-release-${{ steps.date.outputs.current_date_time }}.apk
+        cp app/build/outputs/apk/**/release/*.apk \
+          apk-files/release/app-release-${{ steps.date.outputs.current_date_time }}.apk || true
 
     - name: Upload APK Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: android-apk
         path: apk-files/
+        if-no-files-found: warn
 
   deploy:
     needs: build
@@ -82,7 +86,7 @@ jobs:
         name: android-apk
         path: apk-files
 
-    - name: List Files
+    - name: List Downloaded Files
       run: ls -R apk-files
 
     # ----------------------------
@@ -99,17 +103,16 @@ jobs:
             "tags": [
               "github-actions",
               "android",
-              "${{ github.ref_name }}"
+              "'"${{ github.ref_name }}"'"
             ]
           }'
 
     # ----------------------------
-    # 📈 Push Metrics to Grafana (Prometheus)
+    # 📈 Push CI Metrics to Grafana Cloud Prometheus
     # ----------------------------
-    - name: Push CI Metrics to Grafana
+    - name: Push CI Metrics to Prometheus
       run: |
         echo "android_ci_build_success{branch=\"${{ github.ref_name }}\"} 1" | \
         curl -u "${{ secrets.PROM_USERNAME }}:${{ secrets.PROM_PASSWORD }}" \
         --data-binary @- \
         ${{ secrets.PROM_PUSHGATEWAY_URL }}/job/android-ci
-
