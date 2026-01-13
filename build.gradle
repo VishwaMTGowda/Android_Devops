@@ -25,6 +25,6 @@ apply from: "$rootProject.rootDir/scripts/email-commit.gradle"
 
 sonarqube {
     properties {
-        property "sonar.host.url", "http://98.88.82.44:9000"  // REMOVED TRAILING SLASH
+        property "sonar.host.url", "http://54.235.13.16:9000"  // REMOVED TRAILING SLASH
     }
 }
