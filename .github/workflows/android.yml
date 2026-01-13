@@ -41,8 +41,8 @@ jobs:
     - name: Gradle Lint
       run: ./gradlew lint
 
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
+    - name: Build APK
+      run: ./gradlew build
 
     - name: SonarQube Scan
       env:
