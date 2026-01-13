@@ -27,5 +27,6 @@ sonarqube {
     properties {
         property "sonar.host.url", "http://54.235.13.16:9000"  // REMOVED TRAILING SLASH
         property "sonar.login", "sqa_b8f1dd5d83ade91834ab46df1fcd501680eb2001"
+        property "sonar.java.jdkHome", "/usr/lib/jvm/java-17-openjdk-amd64/bin/java"
     }
 }
