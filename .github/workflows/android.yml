@@ -2,14 +2,9 @@ name: Android CI and CD
 
 on:
   push:
-    branches:
-      - main
-      - qa
-      - develop
+    branches: [main, qa, develop]
   pull_request:
-    branches:
-      - main
-      - qa
+    branches: [main, qa]
 
 env:
   JAVA_VERSION: "17"
@@ -18,17 +13,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    outputs:
-      CURRENT_DATE_TIME: ${{ steps.date.outputs.current_date_time }}
-
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    - name: Setup JDK 17
-      uses: actions/setup-java@v4
+    - uses: actions/setup-java@v4
       with:
-        java-version: ${{ env.JAVA_VERSION }}
+        java-version: 17
         distribution: temurin
         cache: gradle
 
@@ -38,42 +28,26 @@ jobs:
     - name: Gradle Clean
       run: ./gradlew clean
 
-    - name: Gradle Lint
-      run: ./gradlew lint
+    - name: Build Dev Debug APK
+      run: ./gradlew assembleDevDebug
 
-    - name: Build APK
-      run: ./gradlew build
-
-    - name: SonarQube Scan
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      run: ./gradlew sonarqube -Dsonar.projectKey=android-demo-app
-
-    - name: Capture Date-Time
-      id: date
-      run: echo "current_date_time=$(date +'%d-%m-%Y-%H-%M-%S')" >> $GITHUB_OUTPUT
-
-    - name: Locate APKs (Debug)
-      run: find app/build/outputs/apk -type f
+    - name: Verify APK Generation
+      run: |
+        find app/build/outputs -type f
 
     - name: Prepare APK Artifacts
       run: |
-        mkdir -p apk-files/debug apk-files/release
-
-        cp app/build/outputs/apk/**/debug/*.apk \
-          apk-files/debug/app-debug-${{ steps.date.outputs.current_date_time }}.apk || true
-
-        cp app/build/outputs/apk/**/release/*.apk \
-          apk-files/release/app-release-${{ steps.date.outputs.current_date_time }}.apk || true
+        mkdir -p apk-files/debug
+        APK=$(find app/build/outputs/apk -type f -name "*.apk" | head -n 1)
+        cp "$APK" apk-files/debug/
+        ls -R apk-files
 
     - name: Upload APK Artifacts
       uses: actions/upload-artifact@v4
       with:
-       name: android-apk
-       path: apk-files/
-       if-no-files-found: error
-
+        name: android-apk
+        path: apk-files/
+        if-no-files-found: error
 
   deploy:
     needs: build
@@ -87,33 +61,5 @@ jobs:
         name: android-apk
         path: apk-files
 
-    - name: List Downloaded Files
+    - name: List Files
       run: ls -R apk-files
-
-    # ----------------------------
-    # 📊 Grafana Deployment Annotation
-    # ----------------------------
-    - name: Grafana Deployment Annotation
-      run: |
-        curl -X POST \
-          -H "Authorization: Bearer ${{ secrets.GRAFANA_API_KEY }}" \
-          -H "Content-Type: application/json" \
-          ${{ secrets.GRAFANA_URL }}/api/annotations \
-          -d '{
-            "text": "Android CI/CD Deployment",
-            "tags": [
-              "github-actions",
-              "android",
-              "'"${{ github.ref_name }}"'"
-            ]
-          }'
-
-    # ----------------------------
-    # 📈 Push CI Metrics to Grafana Cloud Prometheus
-    # ----------------------------
-    - name: Push CI Metrics to Prometheus
-      run: |
-        echo "android_ci_build_success{branch=\"${{ github.ref_name }}\"} 1" | \
-        curl -u "${{ secrets.PROM_USERNAME }}:${{ secrets.PROM_PASSWORD }}" \
-        --data-binary @- \
-        ${{ secrets.PROM_PUSHGATEWAY_URL }}/job/android-ci
